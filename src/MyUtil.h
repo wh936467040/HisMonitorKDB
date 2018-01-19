@@ -14,13 +14,15 @@ public:
 	static float stof(string s);
 	static int stoi(string s);
 	static string ltos(long l);
+	static long stol(string s);
 	static string ftos(float f);
 	static string f2tos(float f);
 	static int getTime(char* str, int stime);
 	static string getTime(int stime);
 	static string replaceString(string str,string reg,string str2);
+	static string second2String(long s);
 	static int writeFile(string fileName,string data,string time);
-	static int compareDailyTimer(string now,string timer);
+	static int compareDailyTimer(string now ,string timer);
 };
 
 #endif

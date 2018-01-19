@@ -47,6 +47,12 @@ Parameter::Parameter(string file1,string file2)
 	setAlarmParameter();
 }
 
+int Parameter::refresh()
+{
+	setRunParameter();
+	setAlarmParameter();
+	return 1;
+}
 
 int Parameter::setRunParameter()
 {

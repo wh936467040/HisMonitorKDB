@@ -3,6 +3,7 @@
 #include "MyUtil.h"
 #include "MySendFactory.h"
 #include "Thread.h"
+#include "RunTableSpaceShell.h"
 #include "MainDbIpGet.h"
 #include "string.h"
 #include "Runner.h"
@@ -10,12 +11,14 @@
 #include "Parameter.h"
 //#include "CollectLog.h"
 #include "MetricDao.h"
-
 using namespace std;
-string Runner::node = MainDbIpGet::getMainNode();
+
+int Runner::count = 59;
+string Runner::nodeName ="";
 Runner::Runner(string time) 
 {
 	statTime = time;
+//	nodeName = MainDbIpGet::getMainNode();
 }
 
 int Runner::collectSqlUseThread(){
@@ -31,18 +34,51 @@ void * Runner::collectHisDb()
 	MetricDao* metricDao = new MetricDao();
 	vector<Metric*> metrics;
 	int i;
-	i = metric_db_long_session;
+//	this -> switchDb();
 	for(i = begin; i <= end; i++)
 	{
-		metricDao->read(metrics, i);	
-		metricDao->send(metrics,i,time);
-		metricDao->clear(metrics,i);
+		//need to update with switch-case 
+		if(i == metric_db_long_session)
+		{
+			count ++ ;
+			if(count != 60)  // collect per half hour
+			{
+				continue;
+			}
+			else 
+			{
+				metricDao->read(metrics, i);
+				metricDao->send(metrics,i,time);
+				metricDao->clear(metrics,i);	
+				count = 0;
+			}
+		}else if(i == metric_db_tablespace)
+		{
+			if(MyUtil::compareDailyTimer(time,"00:20:00") == 1) // run collect TableSpace shell when time is "00:20:00";
+			{
+				string shellCmd = "./../kdbDataMonitor/tablespaceCollect.sh";
+				LOG_INFO("%s ","run collect tablespace shell...");
+				runShell(shellCmd);
+			}
+			else if(MyUtil::compareDailyTimer(time, "03:50:00") == 1) // read and send data before 4:00 AM;
+			{
+				metricDao->read(metrics, i);
+				metricDao->send(metrics,i,time);
+				metricDao->clear(metrics,i);
+				LOG_INFO("%s","send tablesapce data");
+			}
+		}else
+		{
+			metricDao->read(metrics, i);	
+			metricDao->send(metrics,i,time);
+			metricDao->clear(metrics,i);
+		}
 	}
 	delete metricDao;
 	metricDao=NULL;
 	//return;
 }
-	
+
 /*
 void * Runner::collectSql()
 {
@@ -82,28 +118,19 @@ void * Runner::sendStartAlarm()
         }
         else
         {
-		LOG_INFO("%s; %s","send alarm ok",alarmInfo.data.c_str());
+			LOG_INFO("%s; %s","send alarm ok",alarmInfo.data.c_str());
         }
 }
-
-class SwitchDb: public Thread
-{
-public:
-    void run()
-    {
-	Runner::switchDb();
-    }
-};
 
 
 void * Runner :: switchDb()
 {
-        string newNode = MainDbIpGet::getMainNode();
-        if(node != newNode)
-        {
-		cout << " alarm: db switch " << node << " --> " << newNode << endl;
-		Runner::sendSwitchAlarm(node,newNode);
-		node = newNode;
+	string newNode = MainDbIpGet::getMainNode();
+	if(nodeName != newNode)
+	{
+		cout << " alarm: db switch " << nodeName << " --> " << newNode << endl;
+		Runner::sendSwitchAlarm(nodeName,newNode);
+		nodeName = newNode;
 	}
 	else
 	{
@@ -111,13 +138,12 @@ void * Runner :: switchDb()
 	}
 }
 
-
 void * Runner::sendSwitchAlarm(string oldNode,string newNode)
 {
         struct ALARM_INFO_D5000 alarmInfo;
         alarmInfo.itemid = "00020042";
         alarmInfo.data = "Êý¾Ý¿âÇÐ»ú" ;
-	alarmInfo.data = alarmInfo.data + oldNode + " --> " + newNode;
+		alarmInfo.data = alarmInfo.data + oldNode + " --> " + newNode;
         int ret = MySendFactory::sendAlarm -> sendD5000AlarmInfo(Parameter::nodeId,  MyUtil::getTime(Parameter::sleepTime),alarmInfo);
         if(ret <= 0 )
         {
@@ -127,11 +153,4 @@ void * Runner::sendSwitchAlarm(string oldNode,string newNode)
         {
                 LOG_INFO("%s; %s","send alarm ok",alarmInfo.data.c_str());
         }
-}
-
-void * Runner::switchDbUseThread()
-{
-	SwitchDb th;
-	th.start();
-	cout << "thread run" << endl;
 }

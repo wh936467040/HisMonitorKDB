@@ -15,11 +15,11 @@ enum MetricType
 	metric_db_mem=1,
 	metric_db,
 	metric_db_tablespace,
-	metric_db_trx, 
 	metric_db_io,
-	metric_db_info,
 	metric_db_session,
-	metric_db_long_session
+	metric_db_long_session,
+	metric_db_trx,  // not used now;
+	metric_db_info  // used only once;
 };
 
 class Metric
@@ -134,30 +134,22 @@ public:
 	float m_cpu_used;
 	long m_trx_count;
 	long m_session_count;
+	long m_redo_count;
+	long m_active_session_count;
 	string m_start_time;
 public:
-	DbMetric(string dbid,float cpuUsed,long session_count,long trx_count,string start_time);
+	DbMetric(string dbid,float cpuUsed,long session_count,long trx_count,long redo_count,long active_session_count,string start_time);
 	static void  sendMetric(vector<Metric*>& metrics,string&statTime);
 };
 
 class DbTablespaceMetric : public Metric
 {
 public:
-	short m_tp_id;
-	string m_tp_name;
-	int m_file_num;
-	long m_total_kb;
-	long m_free_kb;
-	double m_use_ratio;
-
-	short m_group_id;
-	string m_group_name;
-	short m_file_id;
-	string m_file_path;
+	string  m_datname;
+	string m_spcname;
+	long m_available_size;
 public:
-	DbTablespaceMetric(string dbid, short tp_id, string tp_name, int file_num, long total_kb, long free_kb, double use_ratio);
-	DbTablespaceMetric(string dbid, short tp_id, string tp_name, short group_id, string group_name, short file_id, string file_path, long total_kb, double use_ratio);
-
+	DbTablespaceMetric(string datname,string spcname,long availableSize);
 	static void sendMetric(vector<Metric*>& metrics,string&statTime);
 };
 

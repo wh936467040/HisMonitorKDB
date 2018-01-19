@@ -6,15 +6,16 @@ using namespace std;
 class Runner {
 public:
 	string statTime;
-	static string node;
+	static string nodeName;
+	static int count;
+
+
 	Runner(string time);
+	void *  collectHisDb();
 	int collectHisDbUseThread();
 	int collectSqlUseThread();
 	void * collectSql();
-
 	void * collectStaticInfo ();
-	void *  collectHisDb();
-
 	static void * switchDb();
 	static void * switchDbUseThread();
 	static void * sendStartAlarm();

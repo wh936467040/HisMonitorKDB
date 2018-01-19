@@ -1,129 +1,59 @@
-#include "AlarmSet.h"
 #include "iostream"
 #include "vector"
-#include "string.h"
+#include "alarmSet.h"
 using namespace std;
 
-Alarm :: Alarm(int t,string time ,string d)
+extern vector<AlarmTable *> alarmSet;
+
+/*
+int main()
 {
-	this -> startTime = time;
-	this -> type = t;
-	this -> data = d;
-	this -> mark = 0;
+	cout<<"111111"<<endl;
+	insertTableIntoAlarmSet("111","111");
+	cout<<"222222"<<endl;
+	cout<<findTableFromAlarmSet("111","111")<<endl;
+	cout<<"333333"<<endl;
+	deleteTableFromAlarmSet("111","111");
+	cout<<"444444"<<endl;
+	cout<<findTableFromAlarmSet("111","111")<<endl;
 }
-
-Alarm :: Alarm(string time ,string d)
+*/
+AlarmTable* findTableFromAlarmSet(string dbName)
 {
-	this -> startTime = time;
-	this -> type = 0;
-	this -> data = d;
-	this -> mark = 0;
-}
-
-Alarm:: Alarm(const Alarm& a)
-{
-	this -> startTime = a.startTime;
-	this -> type = a.type;
-	this -> data = a.data;
-	//this -> mark = a.mark;
-}
-
-int Alarm :: setMark(int i)
-{
-	this -> mark = i;
-}
-
-Alarm::~Alarm()
-{
-}
-
-
-vector<Alarm*> AlarmSet::alarmList;
-
-int AlarmSet :: processAlarm(Alarm alarm)
-{
-	Alarm * res = findAlarmAndSetMark(alarm);
-	if(res!=NULL)
+	for(vector<AlarmTable*>::iterator it = alarmSet.begin(); it != alarmSet.end(); ++it)
 	{
-		//do nothing;
-		res -> setMark(1);
-		return 1;
-	}
-	else
-	{
-		insertAlarm(alarm);// setMark While insert
-		sendAlarm(alarm);
-	}
-	return 0;
-}
-
-int AlarmSet :: processNotExistAlarm()
-{
-	for(vector<Alarm*>::iterator it = alarmList.begin(); it != alarmList.end(); ++it)
-	{
-		if((*it) -> mark ==0)
+		if((*it)->dbName==dbName)
 		{
-			sendDisAlarm(*(*it));
-			deleteAlarm(*(*it));
-		}
-	}
-	for(vector<Alarm*>::iterator it = alarmList.begin(); it != alarmList.end(); ++it)
-	{
-		(*it) -> setMark(0);
-	}	
-
-}
-
-Alarm* AlarmSet::findAlarmAndSetMark(const Alarm alarm)
-{
-	for(vector<Alarm*>::iterator it = alarmList.begin(); it != alarmList.end(); ++it)
-	{
-		if( alarm.type == (*it) -> type && alarm.startTime == (*it) -> startTime && alarm.data == (*it) -> data)
-		{
-			(*it) -> setMark(1);
-			return *it;
+			return (*it);
 		}
 	}
 	return NULL;
 }
 
-
-int AlarmSet::insertAlarm(Alarm alarm)
+bool deleteTableFromAlarmSet(string dbName)
 {
-	 Alarm * res = findAlarmAndSetMark(alarm);
-	 if(res==NULL)
-  	 {
-		Alarm * it = new Alarm(alarm);
-		it -> setMark(1);
-		alarmList.push_back(it);
-	 }
-	 return 1;
-}
-
-
-int AlarmSet::deleteAlarm(Alarm alarm)
-{
- 	for(vector<Alarm*>::iterator it = alarmList.begin(); it != alarmList.end(); ++it)
-	{
- 		if(alarm.type == (*it) -> type && alarm.startTime == (*it) -> startTime && alarm.data == (*it) -> data)
+	for(vector<AlarmTable*>::iterator it = alarmSet.begin(); it != alarmSet.end(); ++it)
+	{   
+		if((*it)->dbName==dbName)
 		{
-			alarmList.erase(it);
+			alarmSet.erase(it);
 			delete (*it);
 			*it=NULL;
-			return 1;
+			return true;
+			//break;
 		}
-	}														
-        return -1;
+	}
+	return false;
 }
 
-
-int AlarmSet::sendAlarm(Alarm alarm)
+bool insertTableIntoAlarmSet(string dbName,string data,string startTime)
 {
-
-	
+	if(findTableFromAlarmSet(dbName)!=NULL)
+	{
+		return false;
+	}
+	AlarmTable * it=new AlarmTable(dbName,data,startTime);
+	alarmSet.push_back(it);
+	return true;
 }
 
-int AlarmSet::sendDisAlarm(Alarm alarm)
-{
-
-}

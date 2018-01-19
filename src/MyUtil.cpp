@@ -150,29 +150,53 @@ string MyUtil::replaceString(string str,string reg,string str2)
 	return str;
 }
 
+string MyUtil::second2String(long s)
+{
+	string str = "";
+	long daySec = 24 * 3600;
+	if(s > daySec)
+	{	
+		long t = s/daySec;
+		s = s%daySec;
+		str = str + MyUtil::ltos(t) + " days ";
+	}
+	if(s > 3600)
+	{
+		long t = s/3600;
+		s = s%3600;
+		str = str + MyUtil::ltos(t) + " h ";
+	}
+	if(s> 60)
+	{
+		long t = s/60;
+		s = s%60;
+		str = str + MyUtil::ltos(t) + " min ";
+	}
+	str = str + MyUtil::ltos(s) + " sec ";
+	return str;
+}
+
 /*
- *
- * a = "2017-09-18 23:00:00";
- * timer = "23:00:00";
- * compareDaiyTimer(a,timer) will return 1;
+ * a = "2017-09-18 23:00:00"
+ * b = "23:00:00"
+ * then MyUtil::compareDailyTimer(a,b) will return 1;
  *
  * */
+
 int MyUtil::compareDailyTimer(string now,string timer)
 {
-	if(now.length() < 19 || timer.length() < 8)
+	if(now.length() < 19 ||timer.length() < 8)
 	{
 		return -2;
 	}
-	string t1 = now.substr(now.length() - 8,now.length());
-	string t2 = timer.substr(timer.length() - 8,timer.length());
-	cout << t1 << "   " << t2 << endl;
+	string t1 = now.substr(now.length() - 8 ,now.length());
+	string t2 = timer.substr(timer.length() -8,timer.length());
+	//cout << t1 << "  " << t2 << endl;
 	if(t1 != t2)
 	{
 		return -1;
-	}else
+	}else 
 	{
-		return 0;
+		return 1;
 	}
-
 }
-

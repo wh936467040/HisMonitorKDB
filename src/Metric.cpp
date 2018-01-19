@@ -6,7 +6,8 @@
 #include "MySendFactory.h"
 #include "MyUtil.h"
 #include "Parameter.h"
-#include "AlarmSet.h"
+#include "alarmConfig.h"
+#include "alarmSet.h"
 using namespace std;
 
 
@@ -14,9 +15,20 @@ string sessionFlag;
 string sessionAlarmStartTime;
 string memAlarmStartTime;
 string memFlag;
+string redoFlag;
+string redoAlarmStartTime;
+string trxFlag;
+string trxAlarmStartTime;
+string activeSessionFlag;
+string activeSessionAlarmStartTime;
+vector<AlarmTable *> alarmSet;
 
 int sessionAlarm = 0;
 int memAlarm = 0;
+int redoAlarm = 0;
+int trxAlarm =0;
+int activeSessionAlarm =0;
+
 int writeFile(string fileName,string data,string time);
 Metric::Metric()
 {
@@ -58,16 +70,13 @@ DbMemMetric::DbMemMetric(string dbid, long counter1, long counter2, long counter
 {}
 
 
-DbMetric::DbMetric(string dbid,float cpuUsed, long session_count,long trxCount,string start_time)
-	:Metric(dbid),m_cpu_used(cpuUsed),m_session_count(session_count),m_trx_count(trxCount),m_start_time(start_time)
+DbMetric::DbMetric(string dbid,float cpuUsed, long session_count,long trxCount,long active_session_count,long redo_count,string start_time)
+	:Metric(dbid),m_cpu_used(cpuUsed),m_session_count(session_count),m_trx_count(trxCount),m_active_session_count(active_session_count),m_redo_count(redo_count),m_start_time(start_time)
 {}
 
 
-DbTablespaceMetric::DbTablespaceMetric(string dbid, short tp_id, string tp_name, int file_num, long total_kb, long free_kb, double use_ratio)
-	:Metric(dbid), m_tp_id(tp_id), m_tp_name(tp_name), m_file_num(file_num), m_total_kb(total_kb), m_free_kb(free_kb), m_use_ratio(use_ratio)
-{}
-DbTablespaceMetric::DbTablespaceMetric(string dbid, short tp_id, string tp_name, short group_id, string group_name, short file_id, string file_path, long total_kb, double use_ratio)
-	:Metric(dbid), m_tp_id(tp_id), m_tp_name(tp_name), m_group_id(group_id), m_group_name(group_name), m_file_id(file_id), m_file_path(file_path), m_total_kb(total_kb), m_use_ratio(use_ratio)
+DbTablespaceMetric::DbTablespaceMetric(string datname, string spcname, long availableSize)
+	:Metric("0"),m_datname(datname), m_spcname(spcname), m_available_size(availableSize)
 {}
 
 DbInfoMetric::DbInfoMetric(string dbid,long session_max_count,string version,string port)
@@ -172,243 +181,44 @@ void  DbIoMetric::sendMetric(vector<Metric*>& metrics,string &statTime)
 //	writeFile("DBIOStat",read_count+" "+write_count+" "+read_bytes+" "+write_bytes+" ",statTime);
 	MySendFactory::sendInfo->sendDBIoStatInfo(Parameter::nodeId,statTime,ioStat);
 }
-/*
-void DbSessionMetric::sendMetric(vector<Metric*>& metrics,string &statTime,string& Parameter::nodeId,string serverIP,int serverPort)
-{
-	if(metrics.empty())
-	{
-		return;
-	}
-	string m_sess_addr="";
-	string m_create_time="";
-	string m_login_name="";
-	string m_client_app="";
-	string m_client_ip="";
-	string m_cpu_time="";
-	string m_cpu_time_call="";
-	string m_logic_reads="";
-	string m_logic_reads_call="";
-	string m_mem_used="";
-	string m_status="";
-	string m_sql_text="";
-
-	char t_sess_addr[100];
-	char t_create_time[32];
-	char t_login_name[100];
-	char t_client_app[100];
-	char t_client_ip[32];
-	char t_cpu_time[64];
-	char t_cpu_time_call[64];
-	char t_logic_reads[64];
-	char t_logic_reads_call[64];
-	char t_mem_used[64];
-	char t_status[20];
-	char t_sql_text[SQL_LENGTH_MAX];
-
-	for(vector<Metric*>::iterator it = metrics.begin(); it != metrics.end(); ++it)
-	{
-		if(metrics.empty())
-		{
-		return;
-		}
-		Metric* metric = *it;
-		DbSessionMetric* sess = static_cast<DbSessionMetric*>(metric);
-	
-		strcpy(	t_sess_addr,sess->m_sess_addr);
-		strcpy(	t_create_time,sess->m_create_time);
-		strcpy(	t_login_name,sess->m_login_name);
-		strcpy(	t_client_app,sess->m_client_app);
-		strcpy(	t_client_ip,sess->m_client_ip);
-		sprintf(t_cpu_time,"%ld",sess->m_cpu_time);
-		sprintf(t_cpu_time_call,"%ld",sess->m_cpu_time_call);
-		sprintf(t_logic_reads,"%ld",sess->m_logic_reads);
-		sprintf(t_logic_reads_call,"%ld",sess->m_logic_reads_call);
-		sprintf(t_mem_used,"%ld",sess->m_mem_used);
-		strcpy(t_status,sess->m_status);
-		strcpy(t_sql_text,sess->m_sql_text);
-
-		m_sess_addr=m_sess_addr+";"+t_sess_addr;
-		m_create_time=m_create_time+";"+t_create_time;
-		m_login_name=m_login_name+";"+t_login_name;
-		m_client_app=m_client_app+";"+t_client_app;
-		m_client_ip=m_client_ip+";"+t_client_ip;
-		m_cpu_time=m_cpu_time+";"+t_cpu_time;
-		m_cpu_time_call=m_cpu_time_call+";"+t_cpu_time_call;
-		m_logic_reads=m_logic_reads+";"+t_logic_reads;
-		m_logic_reads_call=m_logic_reads_call+";"+t_logic_reads_call;
-		m_mem_used=m_mem_used+";"+t_mem_used;
-		m_status=m_status+";"+t_status;
-		m_sql_text=m_sql_text+";"+t_sql_text;
-	}
-		m_sess_addr=m_sess_addr.substr(1,m_sess_addr.size()-1);
-		m_create_time=m_create_time.substr(1,m_create_time.size()-1);
-		m_login_name=m_login_name.substr(1,m_login_name.size()-1);
-		m_client_app=m_client_app.substr(1,m_client_app.size()-1);
-		m_client_ip=m_client_ip.substr(1,m_client_ip.size()-1);
-		m_cpu_time=m_cpu_time.substr(1,m_cpu_time.size()-1);
-		m_cpu_time_call=m_cpu_time_call.substr(1,m_cpu_time_call.size()-1);
-		m_logic_reads=m_logic_reads.substr(1,m_logic_reads.size()-1);
-		m_logic_reads_call=m_logic_reads_call.substr(1,m_logic_reads_call.size()-1);
-		m_mem_used=m_mem_used.substr(1,m_mem_used.size()-1);
-		m_status=m_status.substr(1,m_status.size()-1);
-		m_sql_text=m_sql_text.substr(1,m_sql_text.size()-1);
-	
-		struct DB_SESSION_STAT sess_stat;
-	
-		sess_stat.sess_addr=m_sess_addr; //session????
-		sess_stat.create_time=m_create_time; //???隆搂?隆脌??
-		sess_stat.login_name=m_login_name; //??????
-		sess_stat.client_app=m_client_app; //
-		sess_stat.client_ip=m_client_ip; //???隆矛??ip
-		sess_stat.status=m_status; //隆脕???
-		sess_stat.sql_text=m_sql_text; //sql????
-		sess_stat.cpu_time=m_cpu_time; //
-		sess_stat.cpu_time_call=m_cpu_time_call; //
-		sess_stat.logic_read=m_logic_reads; //
-		sess_stat.logic_read_call=m_logic_reads_call; //
-		sess_stat.mem_used=m_mem_used; //????????
-
-		sendDBSessionStatInfo(Parameter::nodeId,statTime,sess_stat,serverPort,serverIP);
 
 
-	cout<<"-----------------------------"<<endl;
-	cout<<m_sess_addr<<endl;
-	cout<<m_create_time<<endl;
-	cout<<m_login_name<<endl;
-	cout<<m_client_app<<endl;
-	cout<<m_client_ip<<endl;
-	cout<<m_cpu_time<<endl;
-	cout<<m_cpu_time_call<<endl;
-	cout<<m_logic_reads<<endl;
-	cout<<m_logic_reads_call<<endl;
-	cout<<m_mem_used<<endl;
-	cout<<"-----------------------------"<<endl;
-}
-*/
 void DbTablespaceMetric::sendMetric(vector<Metric*>& metrics,string &statTime)
 {
 	if(metrics.empty())
 	{
 		return;
 	}
-	string tp_id="";
-	string tp_name="";
-	string file_num="";   //DM602盲赂聧氓颅藴氓艙篓
-	string group_id="";
-	string group_name="";
-	string file_id="";
-	string file_path="";
-	string total_kb="";
-	string free_kb="";    //DM602盲赂聧氓颅藴氓艙篓
-	string use_ratio="";
-
-
-	char t_tp_id[128]="";
-	string t_tp_name="";
-	char t_total_kb[128]="";
-	char t_use_ratio[128]="";
-	char t_group_id[128]="";
-	string t_group_name="";
-	char t_file_id[128]="";
-	string t_file_path="";
-
-	memset(t_tp_id,0,sizeof(t_tp_id)) ;
-	memset(t_total_kb,0,sizeof(t_total_kb)) ;
-	memset(t_use_ratio,0,sizeof(t_use_ratio)) ;
-	memset(t_group_id,0,sizeof(t_group_id)) ;
-	memset(t_file_id,0,sizeof(t_file_id)) ;
-
+	string vecDatname = "datname:";
+ 	string vecSpcname = "spcname:";
+	string vecAvlSize = "avlsize:";
+	vector<string> vecSend;
 	for(vector<Metric*>::iterator it = metrics.begin(); it != metrics.end(); ++it)
 	{
 		Metric* metric = *it;
 		DbTablespaceMetric* table= static_cast<DbTablespaceMetric*>(metric);
-		sprintf(t_tp_id,"%d\0",table->m_tp_id);
-		t_tp_name=table->m_tp_name;
-		sprintf(t_group_id,"%d\0",table->m_group_id);
-		t_group_name=table->m_group_name;
-		sprintf(t_file_id,"%d\0",table->m_file_id);
-		t_file_path=table->m_file_path;
-		sprintf(t_total_kb,"%ld\0",table->m_total_kb);
-		sprintf(t_use_ratio,"%lf\0",table->m_use_ratio);
-		/*
-		if(table->m_use_ratio>tableLimit)
+		vecDatname = vecDatname + table -> m_datname + ";";
+		vecSpcname = vecSpcname + table -> m_spcname + ";";
+		vecAvlSize = vecAvlSize + MyUtil::ltos(table -> m_available_size) + ";";
+		if(table -> m_available_size < 40 * 1024)
 		{
-			if(findTableFromAlarmSet(t_tp_name)==NULL)
-			{
-				cout<<"send tablelimit "<<tableLimit<<endl;
-				struct ALARM_INFO_D5000 alarmInfo;
-				alarmInfo.itemid="00020009";
-				alarmInfo.data=t_tp_name+" tableUseRatio : "+t_use_ratio;
-				insertTableIntoAlarmSet(t_tp_name,alarmInfo.data,statTime);
-				sendAlarm.sendD5000AlarmInfo(Parameter::nodeId, statTime,alarmInfo);
-				//alarmInfo.level="1";
-				//MySendFactory::sendInfo->sendDAlarmInfo(Parameter::nodeId, statTime,alarmInfo);
-			}
+			 struct ALARM_INFO_D5000 alarmInfo;
+	                 alarmInfo.itemid="00020043";
+		    	 alarmInfo.data="";
+			 alarmInfo.data=alarmInfo.data+"数据库表空间剩余" + table -> m_datname + " " + table -> m_spcname + " " + MyUtil::ltos(table -> m_available_size) + " MB";
+			 MySendFactory::sendAlarm -> sendD5000AlarmInfo(Parameter::nodeId, statTime,alarmInfo);
 		}
-		else
-		{
-			if(findTableFromAlarmSet(t_tp_name)!=NULL)
-			{
-				AlarmTable * tmpPointer=findTableFromAlarmSet(t_tp_name);
-				sendAlarm.sendD5000DisAlarmInfo(Parameter::nodeId,"00020009",tmpPointer->startTime,statTime,tmpPointer->data);
-				cout<<"发送取消告警 tableLimit"<<tableLimit<<endl;
-				deleteTableFromAlarmSet(t_tp_name);
-			}
-		}
-		*/
-		tp_id=tp_id+";"+t_tp_id;
-		tp_name=tp_name+";"+t_tp_name;
-		group_id=group_id+";"+t_group_id;
-		group_name=group_name+";"+t_group_name;
-		file_id=file_id+";"+t_file_id;
-		file_path=file_path+";"+t_file_path;
-		total_kb=total_kb+";"+t_total_kb;
-		use_ratio=use_ratio+";"+t_use_ratio;	
-		file_num=file_num+";"+"0";
-		free_kb=free_kb+";"+"0";
-
 	}
-
-	tp_id=tp_id.substr(1,tp_id.size()-1);
-	tp_name=tp_name.substr(1,tp_name.size()-1);
-	group_id=group_id.substr(1,group_id.size()-1);
-	group_name=group_name.substr(1,group_name.size()-1);
-	file_id=file_id.substr(1,file_id.size()-1);
-	file_path=file_path.substr(1,file_path.size()-1);
-	total_kb=total_kb.substr(1,total_kb.size()-1);
-	use_ratio=use_ratio.substr(1,use_ratio.size()-1);
-	file_num=file_num.substr(1,file_num.size()-1);
-	free_kb=free_kb.substr(1,free_kb.size()-1);
-
-	struct DB_TABLESPACE_STAT tablespace_stat;
-	tablespace_stat.tp_name=tp_name;
-	tablespace_stat.group_name=group_name;
-	tablespace_stat.file_path=file_path;
-	tablespace_stat.tp_id=tp_id;
-	tablespace_stat.group_id=group_id;
-	tablespace_stat.file_id=file_id;
-	tablespace_stat.file_num=file_num;
-	tablespace_stat.total_bytes=total_kb;
-	tablespace_stat.free_bytes=free_kb;
-	tablespace_stat.use_ratio=use_ratio;
-	
-	/*	
-	cout<<"--------tablespace-----------"<<endl;
-	cout<<tp_id<<endl;
-	cout<<tp_name<<endl;
-	cout<<file_num;   //DM602盲赂聧氓颅藴氓艙篓
-	cout<<group_id<<endl;
-	cout<<group_name<<endl;
-	cout<<file_id<<endl;
-	cout<<file_path<<endl;
-	cout<<total_kb<<endl;
-	cout<<free_kb;    //DM602盲赂聧氓颅藴氓艙篓
-	cout<<use_ratio<<endl;
-	cout<<"---------tablespace------"<<endl;
-	*/
-	MySendFactory::sendInfo->sendDBTableSpaceStat(Parameter::nodeId, statTime, tablespace_stat);
-// writeFile("DBTablespaceStat.txt",tp_id+" "+tp_name+" "+use_ratio+" ",statTime);
-//
+	vecDatname = vecDatname.substr(0,vecDatname.length()-1);
+	vecSpcname = vecSpcname.substr(0,vecSpcname.length()-1);
+	vecAvlSize = vecAvlSize.substr(0,vecAvlSize.length()-1);
+	vecSend.push_back(vecDatname);
+	vecSend.push_back(vecSpcname);
+	vecSend.push_back(vecAvlSize);
+	//cout << "vecDatname---" << vecDatname << endl;
+	//cout << "vecSpcname---" << vecSpcname << endl;
+	//cout << "vecAvlSize---" << vecAvlSize << endl; 
+	MySendFactory::sendInfo->sendAllInfo("40016",Parameter::nodeId,statTime,vecSend);
 }
 
 
@@ -434,19 +244,19 @@ void DbLongSessionMetric::sendMetric(vector<Metric*>& metrics,string&statTime)
 		usernameStr = usernameStr + db-> userName +";";
 		clientIpStr = clientIpStr + db-> host +";";
 		queryStart = queryStart + db ->queryStart + ";";
-		costTimeStr = costTimeStr + MyUtil::itos(db -> cost) + ";";
+		costTimeStr = costTimeStr + MyUtil::second2String(db -> cost) + ";";
 
 		string sql = db ->querySql;
 		sql = MyUtil::replaceString(sql,"'"," ");
 		sql = MyUtil::replaceString(sql,";"," ");
 		sqlStr = sqlStr + sql + ";";	
 	}
-	dbNameStr=dbNameStr.substr(0,dbNameStr.length()-2);
-	usernameStr=usernameStr.substr(0,usernameStr.length()-2);
-	clientIpStr=clientIpStr.substr(0,clientIpStr.length()-2);
-	queryStart=queryStart.substr(0,queryStart.length()-2);
-	costTimeStr=costTimeStr.substr(0,costTimeStr.length()-2);
-	sqlStr=sqlStr.substr(0,sqlStr.length()-2);
+	dbNameStr=dbNameStr.substr(0,dbNameStr.length()-1);
+	usernameStr=usernameStr.substr(0,usernameStr.length()-1);
+	clientIpStr=clientIpStr.substr(0,clientIpStr.length()-1);
+	queryStart=queryStart.substr(0,queryStart.length()-1);
+	costTimeStr=costTimeStr.substr(0,costTimeStr.length()-1);
+	sqlStr=sqlStr.substr(0,sqlStr.length()-1);
 	
 	vecSend.push_back(dbNameStr);
 	vecSend.push_back(usernameStr);
@@ -454,7 +264,6 @@ void DbLongSessionMetric::sendMetric(vector<Metric*>& metrics,string&statTime)
 	vecSend.push_back(queryStart);
 	vecSend.push_back(costTimeStr);
 	vecSend.push_back(sqlStr);
-
 	MySendFactory::sendInfo->sendAllInfo("10056",Parameter::nodeId,statTime,vecSend);
 
 }
@@ -491,7 +300,7 @@ void DbMemMetric ::sendMetric(vector<Metric*>& metrics,string &statTime)
 		{
 			useRatio=100*mem->m_counter2/mem->m_counter1;
 		}
-		cout<<"memuseRatio"<<mem->m_counter2<<"/"<<mem->m_counter1<<" result "<<useRatio<<endl;
+		//cout<<"memuseRatio"<<mem->m_counter2<<"/"<<mem->m_counter1<<" result "<<useRatio<<endl;
 		if(useRatio > Parameter::memPoolThreshold)
 		{
 			if(memAlarm==0)
@@ -565,6 +374,8 @@ void DbMetric:: sendMetric(vector<Metric*>& metrics,string&statTime)
 	string sessionCount="sessionCount:";
 	string cpuUsed="cpuUsed:";
 	string trxCount="trxCount:";
+	string activeSessionCount = "activeSessionCount:";
+	string redoCount = "redoCount:";
 	string startTime = "startTime:" ;
 	
 	for(vector<Metric*>::iterator it = metrics.begin(); it != metrics.end(); ++it)
@@ -574,6 +385,8 @@ void DbMetric:: sendMetric(vector<Metric*>& metrics,string&statTime)
 		sessionCount = sessionCount  + MyUtil::ltos(db -> m_session_count)+ ";";
 		cpuUsed = cpuUsed  + MyUtil::f2tos(db -> m_cpu_used) + ";";
 		trxCount = trxCount + MyUtil::ltos(db -> m_trx_count) + ";";
+		activeSessionCount = activeSessionCount + MyUtil::ltos(db -> m_active_session_count) + ";";
+		redoCount = redoCount + MyUtil::ltos(db -> m_redo_count) + ";";
 		startTime = startTime + db -> m_start_time + ";";
 		if(db->m_session_count> Parameter::sessionThreshold)
 		{
@@ -601,15 +414,97 @@ void DbMetric:: sendMetric(vector<Metric*>& metrics,string&statTime)
 				sessionAlarm=0;
 			}
 		}
-	}
-	
+
+		if(db->m_redo_count> 5)  //default threshold 5
+		{
+			if(redoAlarm == 1) continue;
+			else 
+			{
+			       struct ALARM_INFO_D5000 alarmInfo;
+	                       alarmInfo.itemid="00020040";
+			       alarmInfo.data="";							
+			       alarmInfo.data=alarmInfo.data+"数据库redo次数" + "过高,当前值" + MyUtil::ltos(db -> m_redo_count); 
+	                       MySendFactory::sendAlarm -> sendD5000AlarmInfo(Parameter::nodeId, statTime,alarmInfo);
+			       redoAlarm=1;
+			       redoFlag=alarmInfo.data;
+			       redoAlarmStartTime=statTime;
+			       cout<<"数据库redo告警"<<endl;
+			}
+		}
+		else
+		{
+			if(redoAlarm  == 1)
+			{
+				MySendFactory::sendAlarm -> sendD5000DisAlarmInfo(Parameter::nodeId,"00020040",redoAlarmStartTime,statTime,redoFlag);
+                                cout<<"发送取消redo告警 当前值 "<<db->m_redo_count<<endl;
+				redoAlarm=0;
+			}
+		}
+
+		if(db->m_trx_count> 300000000)  //default threshold 5
+		{
+			if(trxAlarm == 1) continue;
+			else													                 
+			{
+				struct ALARM_INFO_D5000 alarmInfo;
+				alarmInfo.itemid="00020041";
+				alarmInfo.data="";
+				alarmInfo.data=alarmInfo.data+"数据库事务数" + "过高,当前值" + MyUtil::ltos(db -> m_trx_count);
+				MySendFactory::sendAlarm -> sendD5000AlarmInfo(Parameter::nodeId, statTime,alarmInfo);
+				trxAlarm=1;
+				trxFlag=alarmInfo.data;
+				trxAlarmStartTime=statTime;
+				cout<<"数据库事务数告警"<<endl;
+			}
+		}
+		else
+		{
+			 if(trxAlarm  == 1)
+	 		 {
+				 MySendFactory::sendAlarm -> sendD5000DisAlarmInfo(Parameter::nodeId,"00020041",trxAlarmStartTime,statTime,trxFlag);
+				 cout<<"发送取消事务告警 当前值 "<<db->m_trx_count<<endl;
+				 trxAlarm=0;
+			 }
+		}
+		if(db->m_active_session_count > 50)
+		{
+			if(activeSessionAlarm == 1) continue;
+			else
+			{
+				struct ALARM_INFO_D5000 alarmInfo;
+				alarmInfo.itemid="00020042";
+				alarmInfo.data="";
+				alarmInfo.data=alarmInfo.data+"数据库活动会话数" + "过高,当前值" + MyUtil::ltos(db -> m_active_session_count);
+				MySendFactory::sendAlarm -> sendD5000AlarmInfo(Parameter::nodeId, statTime,alarmInfo);
+				activeSessionAlarm=1;
+				activeSessionFlag=alarmInfo.data;
+				activeSessionAlarmStartTime=statTime;
+				cout<<"数据库活动连接数告警"<<endl;
+			}
+		}
+		else
+		{
+			 if(activeSessionAlarm  == 1)
+	      		 {
+				 MySendFactory::sendAlarm -> sendD5000DisAlarmInfo(Parameter::nodeId,"00020042",activeSessionAlarmStartTime,statTime,activeSessionFlag);
+				 cout<<"发送取消事务告警当前值 "<<db->m_active_session_count<<endl;
+				 activeSessionAlarm=0;
+			 }
+		}
+	}	
 	sessionCount=sessionCount.substr(0,sessionCount.size()-1);
 	cpuUsed=cpuUsed.substr(0,cpuUsed.size()-1);
+	activeSessionCount = activeSessionCount.substr(0,activeSessionCount.size()-1);
+	redoCount = redoCount.substr(0,redoCount.size()-1);
+	//cout <<"vec" <<redoCount << endl;
+	//cout << "vec" << activeSessionCount << endl;
 	trxCount = trxCount.substr(0,trxCount.size()-1);
 	startTime=startTime.substr(0,startTime.size()-1);
 	vecSend.push_back(sessionCount);
 	vecSend.push_back(cpuUsed);
 	vecSend.push_back(trxCount);
+	vecSend.push_back(activeSessionCount);
+	vecSend.push_back(redoCount);
 	vecSend.push_back(startTime);
 	MySendFactory::sendInfo->sendAllInfo("10015",Parameter::nodeId,statTime,vecSend);	
 }
@@ -684,8 +579,7 @@ void DbInfoMetric::sendMetric(vector<Metric*>& metrics,string&statTime)
 		sprintf(tmp,"%ld",db->m_session_max_count);
 		dbStatic.max_session_count=tmp;
 		dbStatic.port=db->m_port;
-	}
-	
+	}	
 	MySendFactory::sendInfo->sendDBStaticStat(Parameter::nodeId,statTime,dbStatic);
 	return; 
 }
@@ -709,16 +603,21 @@ void DbSessionMetric::sendMetric(vector<Metric*>& metrics,string&statTime)
 		clientIpStr=clientIpStr + db->m_clientIp +";";
 		countStr=countStr + MyUtil::itos(db->m_count) +";";
 	}
-	schameStr=schameStr.substr(0,schameStr.length()-2);
-	usernameStr=usernameStr.substr(0,usernameStr.length()-2);
-	clientIpStr=clientIpStr.substr(0,clientIpStr.length()-2);
-	countStr=countStr.substr(0,countStr.length()-2);
+	schameStr=schameStr.substr(0,schameStr.length()-1);
+	usernameStr=usernameStr.substr(0,usernameStr.length()-1);
+	clientIpStr=clientIpStr.substr(0,clientIpStr.length()-1);
+	countStr=countStr.substr(0,countStr.length()-1);
 	
 	vecSend.push_back(schameStr);
 	vecSend.push_back(usernameStr);
 	vecSend.push_back(countStr);
 	vecSend.push_back(clientIpStr);
-
+	/*
+	cout << schameStr << endl;
+	cout << usernameStr << endl;
+	cout << countStr << endl;
+	cout << clientIpStr << endl;
+	*/
 	MySendFactory::sendInfo->sendAllInfo("10036",Parameter::nodeId,statTime,vecSend);
 }
 

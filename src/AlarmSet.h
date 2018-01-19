@@ -1,35 +1,21 @@
-#ifndef __ALARMSQL_H__
-#define __ALARMSQL_H__
 #include "iostream"
-#include "string.h"
 #include "vector"
 using namespace std;
-class Alarm
+class AlarmTable
 {
-public:
-	int type;
-	string startTime;
+	public :
+	AlarmTable(string dbname,string data,string startTime)
+	{
+		this->startTime=startTime;
+		this->dbName=dbname;
+		this->data=data;
+	};
+	string dbName;
 	string data;
-	int mark;
-	Alarm (string time ,string d);
-	Alarm (int t,string time,string d);
-        Alarm (const Alarm& a);
-	int setMark(int i);
-	~Alarm();
+	string startTime;
+	~AlarmTable(){};
 };
-
-class AlarmSet
-{
-public:
-	static vector<Alarm*> alarmList;
-	static int processAlarm(Alarm alarm);
-	static int processNotExistAlarm();
-private:
-	static Alarm* findAlarmAndSetMark(Alarm alarm);
-	static int insertAlarm(Alarm alarm);
-	static int deleteAlarm(Alarm alarm);
-	static int sendAlarm(Alarm alarm);
-	static int sendDisAlarm(Alarm alarm);
-};
-
-#endif
+extern vector<AlarmTable *> alarmSet;
+AlarmTable* findTableFromAlarmSet(string dbName);
+bool deleteTableFromAlarmSet(string dbName);
+bool insertTableIntoAlarmSet(string dbName,string data,string startTime);

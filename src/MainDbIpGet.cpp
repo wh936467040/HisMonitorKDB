@@ -9,7 +9,7 @@
 #include "MainDbIpGet.h"
 using namespace std;
 
-string MainDbIpGet::cmd = "cat ./1.txt";
+string MainDbIpGet::cmd = "crm_mon";
 
 string MainDbIpGet::getMainIP()
 {

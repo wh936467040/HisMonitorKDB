@@ -27,7 +27,6 @@ MetricDao::MetricDao()
 
 
 	alarmInfo.itemid="00020041";
-
 	string ip = Parameter::dbIp;
 	string user = Parameter::dbUser;
 	string pwd = Parameter::dbPwd;
@@ -51,11 +50,10 @@ MetricDao::MetricDao()
 		localDb.DisConnect(&error1);
 		cout<<"db connect error: " << error1.error_info << endl;
 	}
-
 	if(connectMark < 0 && connectAlarmMark < 0)
 	{
 		cout << "==========*************************" << endl;
-		if("get dmserver start time failed" == getDbStartTime())		
+		if("get kingbase start time failed" == getDbStartTime())		
 		{
 			connectAlarmMark = 1;
 			connectAlarmDetail = dbHost + " " + connectAlarmDetail;
@@ -84,7 +82,7 @@ MetricDao::~MetricDao()
 void MetricDao::read(vector<Metric*>& metrics, int metricType)
 {	
 	CDci *dci=&localDb;
-	if(dci==NULL)
+	if(dci==NULL ||connectMark != 1 )
 	{
 		cout<<"connect db error ";
 		return;
@@ -108,6 +106,10 @@ void MetricDao::read(vector<Metric*>& metrics, int metricType)
 			if(ret_code<=0)
 			{
 				cout<<error1.error_info<<endl;
+				if(attrs != NULL)
+				{
+					free(attrs);
+				}
 				break;
 			}
 			char* val = (char*)(data_buf);
@@ -127,21 +129,23 @@ void MetricDao::read(vector<Metric*>& metrics, int metricType)
 		}
 		case metric_db_info:
 		{
-		 	const char* sql = "select setting from SAMPLES.SYS_CATALOG.SYS_SETTINGS where Name='max_connections'";	   
+		  	const char* sql = "select setting from SAMPLES.SYS_CATALOG.SYS_SETTINGS where Name='max_connections'";	   
 		    long sess_max=0;	        
 		    int rec_num, attr_num;
 		    char *data_buf;
 		    struct ColAttr* attrs;
 		    ret_code = dci->ReadData(sql, &rec_num, &attr_num, &attrs, &data_buf, &error1);
-			cout<<"ret_code   :"<<ret_code<<endl;
 			if(ret_code <=0)
 			{
 				cout<<error1.error_info<<endl;
+				if(attrs != NULL)                                          
+				{                                                                                                                          
+					free(attrs);
+				}
 				break;
 			}
 			char* val = (char*)(data_buf);
 			sess_max=atoi(val);
-			cout<<sess_max<<endl;
 			dci->FreeReadData(attrs, attr_num, data_buf);
 
 			int rec_num2, attr_num2;
@@ -152,13 +156,12 @@ void MetricDao::read(vector<Metric*>& metrics, int metricType)
 				
 			ret_code = dci->ReadData(sql2, &rec_num2, &attr_num2, &attrs2, &data_buf2, &error1);
 			char* val2 = (char*)(data_buf2);
-			cout<<(char*)data_buf2<<endl;
 			version=val2;
 			//	cout<<"version:  "<<version<<endl;
 			//	cout<<"**********************"<<endl;
 	
 			dci->FreeReadData(attrs2, attr_num2,data_buf2);
-			string port=this->local_db_port;	
+			string port= Parameter::dbPort;	
 			DbInfoMetric* staticMetric = new DbInfoMetric("0", sess_max,version,port);
 			metrics.push_back(staticMetric);
 			break;
@@ -166,7 +169,7 @@ void MetricDao::read(vector<Metric*>& metrics, int metricType)
 		case metric_db:
 		{
 			//const char * sql="select * from SAMPLES.SYS_CATALOG.V$SESSION";
-			const char * sql="select count(*) from SAMPLES.SYS_CATALOG.V$SESSION";
+			const char * sql="select count(*) from sys_stat_activity";
 			string start_time=getDbStartTime();
 			float cpuUsed = getCpuUsed(procNum);
 			long trxCount = 0;
@@ -179,14 +182,18 @@ void MetricDao::read(vector<Metric*>& metrics, int metricType)
 			{
 				cout<<"ret_code V$SESSION  :"<<ret_code<<endl;
 				cout<<error1.error_info<<endl;
+				if(attrs != NULL)                                          
+				{                                                                                                                          
+					free(attrs);
+				}
 				break;
 			}
 			char* val = (char*)(data_buf);
 			memcpy(&sess_count, val, attrs[0].data_size);
-			cout<<"session_count"<<sess_count<<endl;
+		//	cout<<"session_count"<<sess_count<<endl;
 			//cout<<"**************************"<<endl;
 			string startTime=getDbStartTime();
-			cout<<startTime<<endl;
+			//cout<<startTime<<endl;
 			dci->FreeReadData(attrs, attr_num, data_buf);
 
 			const char * sql2 = "select max(age(datfrozenxid)) as age_xid from sys_database where datname not in ('GLOBAL','TEMPDB');";
@@ -194,118 +201,110 @@ void MetricDao::read(vector<Metric*>& metrics, int metricType)
 			if(ret_code<=0)
 			{
 				cout<<error1.error_info<<endl;
+				if(attrs != NULL)                                          
+				{                                                                                                                          
+					free(attrs);
+				}
 				break;													
 		       	}
 			char * val2 = (char*)(data_buf);
 			memcpy(&trxCount, val2, attrs[0].data_size);
 			dci->FreeReadData(attrs, attr_num, data_buf);
+			/*
+			cout << "---------------------------------------" << endl;
 			cout << "trxCount:" <<trxCount << endl;
-			
-			long redoCount = 0;
+			cout << "---------------------------------------" << endl;
+			*/
+			long redoCount;
 			const char * sql3 = "select count(state) from sys_redologs where state = 'NOACTIVE';";
 			ret_code = dci->ReadData(sql3, &rec_num, &attr_num, &attrs, &data_buf, &error1);
 			if(ret_code<=0)
 			{
 				cout<<error1.error_info<<endl;
+				if(attrs != NULL)                                          
+				{                                                                                                                          
+					free(attrs);
+				}
 				break;
 			}
 			char * val3 = (char*)(data_buf);
 			memcpy(&redoCount,val3,attrs[0].data_size);
-			dci ->FreeReadData(attrs,attr_num,data_buf);
-			cout << "-------redoCount-------------------" << endl;
-			cout << redoCount << endl;
-			cout << "startTIME " << startTime << endl;
-			cout << "-----------------------------------" << endl;
-			DbMetric * dbMetric=new DbMetric("",cpuUsed, sess_count,trxCount,startTime);
-			cout << "**************************************" << endl;
+			dci->FreeReadData(attrs, attr_num, data_buf);
+			/*
+			cout << "--------------------------------------" << endl;
+			cout << "redoCount :" << redoCount << endl;
+			cout << "--------------------------------------" << endl;
+			*/
+			long activeSessionCount = 0;
+			const char * sql4 = "select count(*) from sys_stat_activity where current_query != '<IDLE>'";
+			ret_code = dci->ReadData(sql4, &rec_num, &attr_num, &attrs, &data_buf, &error1);
+			if(ret_code<=0)
+			{
+				cout<<error1.error_info<<endl;
+				if(attrs != NULL)                                          
+				{                                                                                                                          
+					free(attrs);
+				}
+				break;
+			}
+			char * val4 = (char*)(data_buf);
+			memcpy(&activeSessionCount,val4,attrs[0].data_size);
+			dci->FreeReadData(attrs, attr_num, data_buf);
+			/*
+			cout << "---------------------------------------- " << endl;
+			cout << "activeSessionCount:" << activeSessionCount << endl;
+			cout << "------------------------------------- -- " << endl;		
+			*/
+		
+			DbMetric * dbMetric=new DbMetric("",cpuUsed, sess_count,trxCount,activeSessionCount,redoCount,startTime);
 			metrics.push_back(dbMetric);
-			cout << "**************************************" << endl;
 			break;
 		}
 		case metric_db_tablespace:
 		{
-			const char * sql="select spcname,CurrentBlocks,freeblocks,fileName from SAMPLES.sys_catalog.sys_datafiles ";
-			int rec_num, attr_num;
-			char *data_buf;
-			struct ColAttr* attrs;
-			ret_code = dci->ReadData(sql, &rec_num, &attr_num, &attrs, &data_buf, &error1);
-			cout<<"ret_code "<<ret_code<<endl;
-			if(ret_code<=0)
+			string shellResult = "./result.txt";
+			FILE * fp= fopen(shellResult.c_str(),"r");
+			if(NULL == fp)
 			{
-				cout<<error1.error_no<<error1.error_info<<endl;
-				break ;
+				LOG_ERROR("%s %s %s"," open ",shellResult.c_str(), " failed");
+				break;
 			}
-			if(ret_code > 0 && rec_num > 0)
-			{
-				int offset = 0;
-				int len[3];
-				len[0]=attrs[0].data_size;
-				len[1]=attrs[1].data_size;
-				len[2]=attrs[2].data_size;
-				len[3]=attrs[3].data_size;
-				cout<<"rec_num    "<<rec_num<<endl;
-				for(int i = 0; i < rec_num; i++)
-				{
-					int fileId=0;
-					string spaceName="";
-					string fileName="";
-					long currentBlocks=0;
-					long freeBlocks=0;
-					char* val;
-					for(int col = 0; col < attr_num; col++)
-					{
-						val = (char*)(data_buf + offset);
-						if(col == 0)
-						{		
-							spaceName=string(val);
-						}
-						else if(col == 1)
-						{
-							memcpy(&currentBlocks, val, sizeof(val));
-						}
-						else if(col == 2)
-						{
-							memcpy(&freeBlocks, val, sizeof(val));
-						}
-						else if(col == 3)
-						{
-							fileName=string(val);
-						}
-						else if(col == 4)
-						{
-							//freeBlocks=atoi(val);
-						}
-							
-						offset += len[col];
-					}
-					double useRatio=0;
-					if(currentBlocks==0){
-						useRatio=0;
-					}
-					else
-					{
-						useRatio=((double)(currentBlocks-freeBlocks))/currentBlocks*100.0;
-					}
-					cout<<"useRatio      "<<useRatio<<endl;
-					DbTablespaceMetric* tpMetric = new DbTablespaceMetric("0", 0, spaceName, 0,"0", 0, fileName, currentBlocks, useRatio);																		
-					metrics.push_back(tpMetric);
-				}
-				dci->FreeReadData(attrs, attr_num, data_buf);
-				//cout<<"**********************************"<<endl;
+			char buf[1024];
+			string str = "";
+			while(fgets(buf, 128, fp) != NULL)
+	                {
+				if(strlen(buf) < 2) continue;
+				string str = string(buf);
+				int index = str.find_first_of(" ", 0);
+				string datname = str.substr(0,index);
+				str = str.substr(index+1, str.length());
+				index = str.find_first_of(" ", 0);
+				string spcname = str.substr(0,index);
+				str = str.substr(index+1, str.length()-1);
+				long availableSize = MyUtil::stoi(str.c_str());
+				//cout << datname << "-------" << spcname << "-----" << availableSize << endl;
+				DbTablespaceMetric* tpMetric = new DbTablespaceMetric(datname,spcname,availableSize);
+				metrics.push_back(tpMetric);
 			}
+		        fclose(fp);	
 			break;
 		}
 		case metric_db_session:
 		{
-			const char * sql="SELECT CURR_SCH,USENAME,CLIENT_IP,COUNT(CURR_SCH) FROM SAMPLES.SYS_CATALOG.SYS_SESSION GROUP BY CURR_SCH,USENAME,CLIENT_IP ";
+			//const char * sql="SELECT CURR_SCH,USENAME,CLIENT_IP,COUNT(CURR_SCH) FROM SAMPLES.SYS_CATALOG.SYS_SESSION GROUP BY CURR_SCH,USENAME,CLIENT_IP ";
+			const char * sql = "SELECT datname,usename,host(client_addr),count(datname) FROM SYS_STAT_ACTIVITY group by datname ,usename,client_addr;";
 			int rec_num, attr_num;
 			char *data_buf;
 			struct ColAttr* attrs;
 			ret_code = dci->ReadData(sql, &rec_num, &attr_num, &attrs, &data_buf, &error1);
-			cout<<"ret_code "<<ret_code<<endl;
+			//cout<<"ret_code "<<ret_code<<endl;
 			if(ret_code<=0)
 			{
 				cout<<error1.error_no<<error1.error_info<<endl;
+				if(attrs != NULL)                                          
+				{                                                                                                                          
+					free(attrs);
+				}
 				break ;
 			}
 			if(ret_code > 0 && rec_num > 0)
@@ -316,7 +315,6 @@ void MetricDao::read(vector<Metric*>& metrics, int metricType)
 				len[1]=attrs[1].data_size;
 				len[2]=attrs[2].data_size;
 				len[3]=attrs[3].data_size;
-				cout<<"rec_num    "<<rec_num<<endl;
 				for(int i = 0; i < rec_num; i++)
 				{
 					string schame="";
@@ -372,10 +370,14 @@ void MetricDao::read(vector<Metric*>& metrics, int metricType)
 			char *data_buf;
 			struct ColAttr* attrs;
 			ret_code = dci->ReadData(sql, &rec_num, &attr_num, &attrs, &data_buf, &error1);
-			cout<<"ret_code "<<ret_code<<endl;
+			//cout<<"ret_code "<<ret_code<<endl;
 			if(ret_code<=0)
 			{
 				cout << "select trx failed  " << error1.error_no<<error1.error_info<<endl;
+				if(attrs != NULL)                                          
+				{                                                                                                                          
+					free(attrs);
+				}
 				break ;
 			}
 			if(ret_code > 0 && rec_num > 0)
@@ -415,21 +417,23 @@ void MetricDao::read(vector<Metric*>& metrics, int metricType)
 		*/
 		case metric_db_io:
 		{
+			if(procNum < 0)
+			{
+				break;
+			}
 			long readBytes=0;
 			long writeBytes=0;
 			readBytes=getReadFlow(procNum);
 			writeBytes=getWriteFlow(procNum);
-			cout<<"readBytes    "<<readBytes<<endl;
-			cout<<"writeBytes   "<<writeBytes<<endl;
+			//cout<<"readBytes    "<<readBytes<<endl;
+			//cout<<"writeBytes   "<<writeBytes<<endl;
 			DbIoMetric* ioMetric = new DbIoMetric("0", 0, 0, readBytes, writeBytes);
 			metrics.push_back(ioMetric);
 			break;
 		}
 		case metric_db_long_session:
 		{
-			cout << "test----------------------------------------------------------" << endl;
-		//	const char * sql = "select datname as DataBase,usename as Username,client_addr as Host,query_start as Start,(now()-query_start) as Elapsed,current_query as Query from sys_stat_activity where Elapsed >=1::interval hour and current_query <>'<IDLE>' order by datname";
-			const char * sql = "select datname as DataBase,usename as Username,client_addr as Host,to_char(to_date(query_start)) as Start,DATEDIFF('second',cast(query_start as TIMESTAMP),cast(now() as TIMESTAMP) ) as Elapsed ,current_query as Query from sys_stat_activity where current_query <>'<IDLE>' order by datname";
+			const char * sql = "select datname as DataBase,usename as Username,host(client_addr) as Host,to_char(to_date(query_start)) as Start,DATEDIFF('second',cast(query_start as TIMESTAMP),cast(now() as TIMESTAMP) ) as Elapsed ,current_query as Query from sys_stat_activity where current_query <>'<IDLE>'  and Elapsed >= 1800 order by datname";
 			int rec_num, attr_num;
 			char *data_buf;
 			struct ColAttr* attrs;
@@ -437,7 +441,11 @@ void MetricDao::read(vector<Metric*>& metrics, int metricType)
 			cout<<"ret_code "<<ret_code<<endl;
 			if(ret_code<=0)
 			{
-				cout<<error1.error_no<<error1.error_info<<endl;
+				cout<< sql  <<error1.error_no<<error1.error_info<<endl;
+				if(attrs != NULL)                                          
+				{                                                                                                                          
+					free(attrs);
+				}
 				break ;
 			}
 			if(ret_code > 0 && rec_num > 0)
@@ -479,7 +487,7 @@ void MetricDao::read(vector<Metric*>& metrics, int metricType)
 						else if(col ==5)
 						{
 							querySql = string(val);
-							cout << querySql << endl;
+							//cout << querySql << endl;
 						}
 						offset += attrs[col].data_size;
 					}
@@ -488,7 +496,6 @@ void MetricDao::read(vector<Metric*>& metrics, int metricType)
 					//cout << databaseName << " " << userName << " " << host << " "  << queryStart << " " << cost << endl;
 				}
 				dci->FreeReadData(attrs, attr_num, data_buf);
-				//cout<<"**********************************"<<endl;
 			}
 			break;
 		}
@@ -574,7 +581,7 @@ string getDbStartTime()
 		string dbDir = Parameter::dbProcessName;
 		string cmd= "ps -eO lstart | grep -w "+ dbDir+"|grep -v grep |awk '{print $6,$3,$4,$5}'";
 		FILE * pp=popen(cmd.c_str(),"r");
-		cout<<cmd<<endl;
+		//cout<<cmd<<endl;
 		if(pp==NULL)
 		{
 			pclose(pp);
@@ -601,7 +608,7 @@ int getProcNum()
 
 	string dbDir = Parameter::dbProcessName;
 	string cmd= "ps -ef | grep -w "+ dbDir+"| grep -v grep |awk '{print $2}'";
-	cout<<cmd<<endl;
+	//cout<<cmd<<endl;
 	FILE *pp=NULL;
 	pp=popen(cmd.c_str(),"r");
 	if(pp==NULL)
@@ -627,6 +634,10 @@ int getProcNum()
 
 long  getMemUsed(int procNum)
 {
+	if(procNum < 0)
+       	{
+		return 0;
+	}
 	string s1="cat /proc/";
 	char tmp[64]="";
 	sprintf(tmp,"%d",procNum);
@@ -663,7 +674,7 @@ long getWriteFlow(int procNum)
 	string s2=string(tmp);
     	string s3="/io | grep -w write_bytes |awk '{print $2}'";
     	string cmd =s1+s2+s3;
-    	cout<<cmd<<endl;
+    	//cout<<cmd<<endl;
    	FILE *pp=NULL;
 	pp=popen(cmd.c_str(),"r");
 	if(pp==NULL)
@@ -749,6 +760,24 @@ void MetricDao::clear(vector<Metric*>& metrics, int metricType)
 				   delete (DbIoMetric *) *it;
 				   *it=NULL;
 				   break;
+			}
+			case metric_db_info:
+			{
+				delete (DbInfoMetric *) * it;
+				*it = NULL;
+				break;
+			}
+			case metric_db_session:
+			{
+				delete (DbSessionMetric *) * it;
+				*it = NULL;
+				break;
+			}
+			case metric_db_trx:
+			{
+				delete (DbTrxMetric *) *it;
+				*it = NULL;
+				break;
 			}
 			/*
 			case metric_db_sql:

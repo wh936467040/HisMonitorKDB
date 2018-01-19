@@ -49,9 +49,9 @@ public:
 		Parameter(string ,string ,int ,string ,int);
 		Parameter(string configFile,string alarmFile);
 		
-		int setRunParameter();
-		int setAlarmParameter();
-			
+		static int setRunParameter();
+		static int setAlarmParameter();
+		static int refresh();
 		static void print();
 };
 
