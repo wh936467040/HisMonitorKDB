@@ -50,10 +50,11 @@ MetricDao::MetricDao()
 		localDb.DisConnect(&error1);
 		cout<<"db connect error: " << error1.error_info << endl;
 	}
+
 	if(connectMark < 0 && connectAlarmMark < 0)
 	{
 		cout << "==========*************************" << endl;
-		if("get kingbase start time failed" == getDbStartTime())		
+		if("get dmserver start time failed" == getDbStartTime())		
 		{
 			connectAlarmMark = 1;
 			connectAlarmDetail = dbHost + " " + connectAlarmDetail;

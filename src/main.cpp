@@ -32,7 +32,7 @@ int main()
 	char logMode[32] = "NaN";
 	Log::get_instance()->init((const char*)logFile.c_str(), 8192,20000000 , 0,logMode); // logBufferSize,logFileSize,cacheSize
 	Runner* runner = new Runner(MyUtil::getTime(Parameter::sleepTime));
-	//runner -> collectStaticInfo();
+	runner -> collectStaticInfo();
 	//runner -> switchDbUseThread();
 	LOG_INFO("%s : %s %s","monitor hisdb start ",VERSION,runner -> statTime.c_str());
 	while(1)

@@ -45,6 +45,9 @@ public:
 		static int sessionThreshold;
 		static int tableSpaceThreshold;
 		static int memPoolThreshold;
+		static int redoThreshold;
+		static int trxThreshold;
+		static int activeSessionThreshold;
 		
 		Parameter(string ,string ,int ,string ,int);
 		Parameter(string configFile,string alarmFile);

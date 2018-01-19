@@ -202,11 +202,11 @@ void DbTablespaceMetric::sendMetric(vector<Metric*>& metrics,string &statTime)
 		vecAvlSize = vecAvlSize + MyUtil::ltos(table -> m_available_size) + ";";
 		if(table -> m_available_size < 40 * 1024)
 		{
-			 struct ALARM_INFO_D5000 alarmInfo;
-	                 alarmInfo.itemid="00020043";
-		    	 alarmInfo.data="";
-			 alarmInfo.data=alarmInfo.data+"数据库表空间剩余" + table -> m_datname + " " + table -> m_spcname + " " + MyUtil::ltos(table -> m_available_size) + " MB";
-			 MySendFactory::sendAlarm -> sendD5000AlarmInfo(Parameter::nodeId, statTime,alarmInfo);
+			struct ALARM_INFO_D5000 alarmInfo;
+			alarmInfo.itemid="00020043";
+			alarmInfo.data="";
+			alarmInfo.data=alarmInfo.data+"HisDB数据库表空间剩余" + table -> m_datname + " " + table -> m_spcname + " " + MyUtil::ltos(table -> m_available_size) + " MB";
+			MySendFactory::sendAlarm -> sendD5000AlarmInfo(Parameter::nodeId, statTime,alarmInfo);
 		}
 	}
 	vecDatname = vecDatname.substr(0,vecDatname.length()-1);
@@ -415,20 +415,20 @@ void DbMetric:: sendMetric(vector<Metric*>& metrics,string&statTime)
 			}
 		}
 
-		if(db->m_redo_count> 5)  //default threshold 5
+		if(db->m_redo_count < Parameter::redoThreshold)  //default threshold 5
 		{
 			if(redoAlarm == 1) continue;
 			else 
 			{
-			       struct ALARM_INFO_D5000 alarmInfo;
-	                       alarmInfo.itemid="00020040";
-			       alarmInfo.data="";							
-			       alarmInfo.data=alarmInfo.data+"数据库redo次数" + "过高,当前值" + MyUtil::ltos(db -> m_redo_count); 
-	                       MySendFactory::sendAlarm -> sendD5000AlarmInfo(Parameter::nodeId, statTime,alarmInfo);
-			       redoAlarm=1;
-			       redoFlag=alarmInfo.data;
-			       redoAlarmStartTime=statTime;
-			       cout<<"数据库redo告警"<<endl;
+				struct ALARM_INFO_D5000 alarmInfo;
+				alarmInfo.itemid="00020040";
+				alarmInfo.data="";							
+				alarmInfo.data=alarmInfo.data+"数据库redo次数" + "过低,当前值" + MyUtil::ltos(db -> m_redo_count); 
+				MySendFactory::sendAlarm -> sendD5000AlarmInfo(Parameter::nodeId, statTime,alarmInfo);
+				redoAlarm=1;
+				redoFlag=alarmInfo.data;
+				redoAlarmStartTime=statTime;
+				cout<<"数据库redo告警"<<endl;
 			}
 		}
 		else
@@ -436,12 +436,12 @@ void DbMetric:: sendMetric(vector<Metric*>& metrics,string&statTime)
 			if(redoAlarm  == 1)
 			{
 				MySendFactory::sendAlarm -> sendD5000DisAlarmInfo(Parameter::nodeId,"00020040",redoAlarmStartTime,statTime,redoFlag);
-                                cout<<"发送取消redo告警 当前值 "<<db->m_redo_count<<endl;
+				cout<<"发送取消redo告警 当前值 "<<db->m_redo_count<<endl;
 				redoAlarm=0;
 			}
 		}
 
-		if(db->m_trx_count> 300000000)  //default threshold 5
+		if(db->m_trx_count/10000.0> Parameter::trxThreshold)  //default threshold 5ww
 		{
 			if(trxAlarm == 1) continue;
 			else													                 
@@ -459,14 +459,14 @@ void DbMetric:: sendMetric(vector<Metric*>& metrics,string&statTime)
 		}
 		else
 		{
-			 if(trxAlarm  == 1)
-	 		 {
-				 MySendFactory::sendAlarm -> sendD5000DisAlarmInfo(Parameter::nodeId,"00020041",trxAlarmStartTime,statTime,trxFlag);
-				 cout<<"发送取消事务告警 当前值 "<<db->m_trx_count<<endl;
-				 trxAlarm=0;
-			 }
+			if(trxAlarm  == 1)
+			{
+				MySendFactory::sendAlarm -> sendD5000DisAlarmInfo(Parameter::nodeId,"00020041",trxAlarmStartTime,statTime,trxFlag);
+				cout<<"发送取消事务告警 当前值 "<<db->m_trx_count<<endl;
+				trxAlarm=0;
+			}
 		}
-		if(db->m_active_session_count > 50)
+		if(db->m_active_session_count > Parameter::activeSessionThreshold)
 		{
 			if(activeSessionAlarm == 1) continue;
 			else
@@ -484,12 +484,12 @@ void DbMetric:: sendMetric(vector<Metric*>& metrics,string&statTime)
 		}
 		else
 		{
-			 if(activeSessionAlarm  == 1)
-	      		 {
-				 MySendFactory::sendAlarm -> sendD5000DisAlarmInfo(Parameter::nodeId,"00020042",activeSessionAlarmStartTime,statTime,activeSessionFlag);
-				 cout<<"发送取消事务告警当前值 "<<db->m_active_session_count<<endl;
-				 activeSessionAlarm=0;
-			 }
+			if(activeSessionAlarm  == 1)
+			{
+				MySendFactory::sendAlarm -> sendD5000DisAlarmInfo(Parameter::nodeId,"00020042",activeSessionAlarmStartTime,statTime,activeSessionFlag);
+				cout<<"发送取消数据库活动连接告警当前值 "<<db->m_active_session_count<<endl;
+				activeSessionAlarm=0;
+			}
 		}
 	}	
 	sessionCount=sessionCount.substr(0,sessionCount.size()-1);

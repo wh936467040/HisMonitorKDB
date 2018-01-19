@@ -1,4 +1,4 @@
-exe2_his_2.3.0(kdb)
+exe2_his_2.4.0(kdb)
 ===============
 
 Introduction
@@ -15,4 +15,6 @@ makesure ($D5000_HOME)/var/log is exist.
 
 the software will invoke ./kdbDataMonitor/tabledspaceCollect.sh
 and ./kdbDataMonitor/env.properties need to be config;
+
+./conf/auto_monitor.conf need add virtualIp if databse switch need alarm;
 

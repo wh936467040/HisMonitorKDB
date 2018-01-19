@@ -26,6 +26,9 @@ string Parameter::dbUser;
 string Parameter::dbPwd;
 string Parameter::myDbLog = "./monitor_db";
 int Parameter::sqlTimeOut = 1000;
+int Parameter::redoThreshold = 15;
+int Parameter::trxThreshold = 80000;
+int Parameter::activeSessionThreshold = 30;
 
 string Parameter::serverIpMain;
 int Parameter::serverPortMain;
@@ -189,6 +192,18 @@ int Parameter::setAlarmParameter()
 			{
 				sessionThreshold = atoi(str_content.c_str());
 			}
+			else if(str_code == "redoAlarm" || str_code == "00020040")
+			{
+				redoThreshold = atoi(str_content.c_str());
+			}
+			else if(str_code == "trxAlarm" || str_code == "00020041")
+			{
+				trxThreshold = atoi(str_content.c_str());
+			}
+			else if(str_code == "activeSessionAlarm" || str_code == "00020041")
+			{
+				activeSessionThreshold = atoi(str_content.c_str());
+			}
 		}
 	}
 	fclose(pp);
@@ -211,6 +226,9 @@ void Parameter::print()
 
 	cout << "sessionAlarmThreshold: " << sessionThreshold << endl;
 	cout << "MemPoolAlarmThreshold: " << memPoolThreshold << endl;
+	cout << "activeSessionThreshold: " << activeSessionThreshold << endl;
+	cout << "redoThreshold: " << redoThreshold << endl;
+	cout << "trxThreshold: " << trxThreshold << " * 10000" << endl;
 
 	cout << "serverMain: " << serverIpMain << ":" << serverPortMain << endl;
 	cout << "serverBack: " << serverIpBack << ":" << serverPortBack << endl;
